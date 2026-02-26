@@ -1,31 +1,76 @@
 "use client"
 import React, { useEffect, useState } from 'react'
-import { getCartV2, createCheckoutSession, createCashOrder } from '@/lib/api'
+import { getCartV2, addToCartV2, createCheckoutSession, createCashOrder } from '@/lib/api'
 import { useRouter } from 'next/navigation'
 
 export default function CheckoutPage() {
   const [cart, setCart] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const router = useRouter()
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') || undefined : undefined
 
   useEffect(() => {
     let mounted = true
-    setLoading(true)
-    getCartV2(token)
-      .then((res: any) => { if (!mounted) return; setCart(res?.data || null) })
-      .catch(() => { if (!mounted) return; setCart(null) })
-      .finally(() => mounted && setLoading(false))
+    setIsLoading(true);
+    // Try server cart for authenticated users; fall back to localStorage cart for guests.
+    // If user is signed in and server cart is empty but localStorage has items, sync them to server.
+    (async () => {
+      try {
+        const res: any = await getCartV2(token)
+        if (!mounted) return
+        const serverCart = res?.data || null
+        if (serverCart && (serverCart.items || []).length > 0) {
+          setCart(serverCart)
+        } else {
+          // try to sync local cart to server for authenticated users
+          try {
+            const raw = localStorage.getItem('cart')
+            const local = raw ? JSON.parse(raw) : []
+            if (token && local && local.length > 0) {
+              // add each item to server cart
+              await Promise.all(
+                local.map((it: any) => addToCartV2(it._srcId || it.productId || it._id, it.quantity || it.qty || 1, token))
+              )
+              // re-fetch server cart
+              const refreshed: any = await getCartV2(token)
+              setCart(refreshed?.data || null)
+            } else {
+              const mapped = { items: (local || []).map((it: any, idx: number) => ({ _id: it._id || `local-${idx}`, product: { _id: it._srcId || it._id, title: it.title || it.name || '', image: it.image || it.img || undefined, price: it.price || it.unitPrice || 0 }, quantity: it.qty || it.quantity || 1 })) }
+              setCart(mapped)
+            }
+          } catch (e) {
+            const raw = localStorage.getItem('cart')
+            const local = raw ? JSON.parse(raw) : []
+            const mapped = { items: (local || []).map((it: any, idx: number) => ({ _id: it._id || `local-${idx}`, product: { _id: it._srcId || it._id, title: it.title || it.name || '', image: it.image || it.img || undefined, price: it.price || it.unitPrice || 0 }, quantity: it.qty || it.quantity || 1 })) }
+            setCart(mapped)
+          }
+        }
+      } catch (e) {
+        if (!mounted) return
+        try {
+          const raw = localStorage.getItem('cart')
+          const local = raw ? JSON.parse(raw) : []
+          const mapped = { items: (local || []).map((it: any, idx: number) => ({ _id: it._id || `local-${idx}`, product: { _id: it._srcId || it._id, title: it.title || it.name || '', image: it.image || it.img || undefined, price: it.price || it.unitPrice || 0 }, quantity: it.qty || it.quantity || 1 })) }
+          setCart(mapped)
+        } catch (e) {
+          setCart(null)
+        }
+      } finally {
+        if (mounted) setIsLoading(false)
+      }
+    })()
     return () => { mounted = false }
   }, [token])
 
+  const [shippingAddress, setShippingAddress] = useState({ details: '', phone: '', city: '' })
+
+  // Stripe/card checkout removed per request.
   async function handleCardCheckout() {
-    if (!cart?.id) return alert('No cart available')
+    if (!cart?.id) return alert('No cart available — sign in to complete checkout')
     try {
       setProcessing(true)
-      const res = await createCheckoutSession(cart.id, token)
-      // API may return URL in different places; try common locations
+      const res = await createCheckoutSession(cart.id, token, { url: window.location.origin, shippingAddress })
       const url = res?.url || res?.data?.url || res?.session?.url
       if (url) {
         window.location.href = url
@@ -39,10 +84,10 @@ export default function CheckoutPage() {
   }
 
   async function handleCashCheckout() {
-    if (!cart?.id) return alert('No cart available')
+    if (!cart?.id) return alert('No cart available — sign in to complete checkout')
     try {
       setProcessing(true)
-      await createCashOrder(cart.id, token)
+      await createCashOrder(cart.id, token, shippingAddress)
       alert('Order placed (cash).')
       router.push('/orders')
     } catch (e: any) {
@@ -56,7 +101,7 @@ export default function CheckoutPage() {
   return (
     <main className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">Checkout</h1>
-      {loading ? (
+      {isLoading ? (
         <p>Loading cart...</p>
       ) : !cart || (cart.items || []).length === 0 ? (
         <p className="text-gray-500">Your cart is empty.</p>
@@ -80,10 +125,20 @@ export default function CheckoutPage() {
             <div className="text-right font-semibold">Total: EGP {total}</div>
           </div>
 
-          <div className="flex gap-3 justify-end">
-            <button disabled={processing} onClick={handleCardCheckout} className="bg-blue-600 text-white px-4 py-2 rounded">Pay with Card (Stripe)</button>
-            <button disabled={processing} onClick={handleCashCheckout} className="bg-gray-100 px-4 py-2 rounded">Pay Cash on Delivery</button>
+          <div className="border rounded p-4">
+            <h2 className="font-semibold mb-2">Shipping Address</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input value={shippingAddress.details} onChange={(e) => setShippingAddress({ ...shippingAddress, details: e.target.value })} placeholder="Address details" className="border p-2 rounded" />
+              <input value={shippingAddress.phone} onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })} placeholder="Phone" className="border p-2 rounded" />
+              <input value={shippingAddress.city} onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })} placeholder="City" className="border p-2 rounded" />
+            </div>
           </div>
+
+          <div className="flex gap-3 justify-end">
+            <button disabled={processing || !token} onClick={handleCardCheckout} className="bg-blue-600 text-white px-4 py-2 rounded">Pay with Card</button>
+            <button disabled={processing || !token} onClick={handleCashCheckout} className="bg-gray-100 px-4 py-2 rounded">Pay Cash on Delivery</button>
+          </div>
+          {!token && <p className="text-sm text-gray-500 mt-2">Sign in to complete payment and create the server-side order.</p>}
         </div>
       )}
     </main>

@@ -21,7 +21,7 @@ export default async function BrandsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {brands.map((b) => (
-            <div key={b._id} className="border rounded p-4 flex flex-col items-center text-center">
+            <a key={b._id} href={`/brands/${b._id}`} className="border rounded p-4 flex flex-col items-center text-center hover:shadow-lg transition cursor-pointer">
               <div className="w-full h-40 bg-gray-100 flex items-center justify-center mb-3 overflow-hidden">
                 {b.image ? (
                   <img
@@ -33,8 +33,8 @@ export default async function BrandsPage() {
                   <span className="text-gray-400">No image</span>
                 )}
               </div>
-              <h3 className="font-medium">{b.name}</h3>
-            </div>
+              <h3 className="font-medium uppercase tracking-wide">{b.name}</h3>
+            </a>
           ))}
         </div>
       )}

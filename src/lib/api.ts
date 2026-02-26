@@ -108,10 +108,12 @@ export async function removeCartItemV2(itemId: string, token?: string) {
 }
 
 // Orders & Payments helpers
-export async function createCheckoutSession(cartId: string, token?: string) {
-  const res = await fetch(`${API_ROOT}/api/v1/orders/checkout-session/${cartId}`, {
+export async function createCheckoutSession(cartId: string, token?: string, opts?: { url?: string; shippingAddress?: any }) {
+  const urlParam = opts?.url ? `?url=${encodeURIComponent(opts.url)}` : ''
+  const res = await fetch(`${API_ROOT}/api/v1/orders/checkout-session/${cartId}${urlParam}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(token ? { token } : {}) },
+    body: opts?.shippingAddress ? JSON.stringify({ shippingAddress: opts.shippingAddress }) : undefined,
   })
   if (!res.ok) {
     const txt = await res.text().catch(() => '')
@@ -120,12 +122,14 @@ export async function createCheckoutSession(cartId: string, token?: string) {
   return res.json()
 }
 
-export async function createCashOrder(cartId: string, token?: string) {
-  // Attempt to create an order with cash payment. The API may expect different body; this is a reasonable default.
+export async function createCashOrder(cartId: string, token?: string, shippingAddress?: any) {
+  // Attempt to create an order with cash payment. The API may expect different body; include shippingAddress if provided.
+  const body: any = { cartId, paymentMethod: 'cash' }
+  if (shippingAddress) body.shippingAddress = shippingAddress
   const res = await fetch(`${API_ROOT}/api/v1/orders`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(token ? { token } : {}) },
-    body: JSON.stringify({ cartId, paymentMethod: 'cash' }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) {
     const txt = await res.text().catch(() => '')

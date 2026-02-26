@@ -81,17 +81,17 @@ export default function Navbar() {
         <div className="nav-links flex gap-8">
           <NavigationMenu className='gap-3'>
             <NavigationMenuItem>
-              <Link href="/products" className={`px-3 py-2 rounded transition ${isActive('/products') ? 'bg-black text-white font-semibold' : 'text-gray-700 hover:bg-black hover:text-white'}`}>
+              <Link href="/products" className={`px-3 py-2 rounded transition ${isActive('/products') ? 'bg-black text-white font-semibold' : 'text-gray-700' } cursor-pointer`}>
                 Products
               </Link>
             </NavigationMenuItem>
             <NavigationMenuItem>
-              <Link href="/brands" className={`px-3 py-2 rounded transition ${isActive('/brands') ? 'bg-black text-white font-semibold' : 'text-gray-700 hover:bg-black hover:text-white'}`}>
+              <Link href="/brands" className={`px-3 py-2 rounded transition ${isActive('/brands') ? 'bg-black text-white font-semibold' : 'text-gray-700' } cursor-pointer`}>
                 Brands
               </Link>
             </NavigationMenuItem>
             <NavigationMenuItem>
-              <Link href="/categories" className={`px-3 py-2 rounded transition ${isActive('/categories') ? 'bg-black text-white font-semibold' : 'text-gray-700 hover:bg-black hover:text-white'}`}>
+              <Link href="/categories" className={`px-3 py-2 rounded transition ${isActive('/categories') ? 'bg-black text-white font-semibold' : 'text-gray-700' } cursor-pointer`}>
                 Categories
               </Link>
             </NavigationMenuItem>
@@ -107,13 +107,16 @@ export default function Navbar() {
               <User size={22} />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end">
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <Link href="/profile">Profile</Link>
+                <Link href="/profile" className="cursor-pointer">Profile</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/orders">Orders</Link>
+                <Link href="/orders" className="cursor-pointer">Orders</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/wishList" className="cursor-pointer">Wishlist</Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
